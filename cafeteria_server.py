@@ -1,6 +1,6 @@
 import os
 import psycopg
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 import logging
 
@@ -44,10 +44,32 @@ def obtener_pedidos():
         logging.error(f"Error obteniendo pedidos: {e}")
         return jsonify({"error": "No se pudieron obtener los pedidos"}), 500
 
+# API para crear un pedido
+@app.route("/pedidos", methods=["POST"])
+def crear_pedido():
+    data = request.json
+    usuario = data.get("usuario")
+    producto = data.get("producto")
+    cantidad = data.get("cantidad")
+
+    if not all([usuario, producto, cantidad]):
+        return jsonify({"error": "Faltan datos"}), 400
+
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO pedidos (usuario, producto, cantidad, estado) VALUES (%s, %s, %s, %s)",
+                (usuario, producto, cantidad, "pendiente")
+            )
+        return jsonify({"message": "Pedido creado correctamente"}), 201
+    except Exception as e:
+        logging.error(f"Error creando pedido: {e}")
+        return jsonify({"error": "No se pudo crear el pedido"}), 500
+
 # API para actualizar pedidos
 @app.route("/pedidos/<int:pedido_id>", methods=["PATCH"])
 def actualizar_pedido(pedido_id):
-    from flask import request
     nuevo_estado = request.json.get("estado")
     if nuevo_estado not in ["pendiente", "en_preparacion", "entregado"]:
         return jsonify({"error": "Estado inválido"}), 400
